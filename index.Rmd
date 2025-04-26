@@ -1,0 +1,609 @@
+---
+title: "Allergy Dashboard 1"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: flatly
+    orientation: rows
+    vertical_layout: fill
+    css: custom.css  # Include custom CSS file
+
+---
+
+ 
+
+```{r, include=FALSE, warnings=FALSE, message=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning=FALSE)
+```
+
+
+```{r setup, include=FALSE}
+ 
+library(tidyverse)
+library(hrbrthemes)
+library(viridis)
+library(ggalluvial)
+library(ggsankey)
+library(stringr)
+library(flexdashboard)
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(DT)
+library(rpivotTable)
+library(plotly)
+library(highcharter)
+library(reactable)
+library(bslib)
+library(bsicons)
+library(shiny)
+library(networkD3)
+library(kableExtra)
+
+```
+
+```{r, include=FALSE, warnings=FALSE, message=FALSE}
+ 
+  
+```
+
+```{r}
+colors<-c("#1b9e77","#d95f02","#e7298a","#7570b3","#a6761d")
+```
+
+# Skin Prick Test Overview
+
+row
+------------------------------
+
+
+### Total Number of Patients Who Underwent Skin Prick Testing
+
+```{r}
+valueBox(paste("Total  2549"),
+         color = "black")
+```
+
+### Number of Patients Who Tested Positive in the Skin Prick Test
+
+```{r}
+valueBox(paste("Positive  1916"),
+         color = "#e41a1c")
+```
+
+## Chart B {.tabset}
+
+### Allergen Combinations  
+
+```{r}
+# Define the data
+allergen_names <- c("House dust mite", "Cockroach", "Mould mite", "Dog hair", "Prawns/Shrimp", 
+                    "Aspergillus fumigatus", "Cat", "Cows milk", "Wheat flour", "Beef", 
+                    "Weed mix", "Pork", "Mutton", "Gelatin", "Grass", "Egg", "Tuna", "Coconut","Other")
+
+test_numbers <- c(9, 17, 45, 8, 18, 3, 7, 5, 23, 4, 171, 15, 38, 114, 119, 10, 21, 24,200)
+
+# Create a mapping between test numbers and allergen names
+allergen_mapping <- setNames(allergen_names, test_numbers)
+
+# Define the table
+table <- data.frame(
+  Number = 1:31,
+  Combination = c( "9", "9, 17", "9, 17, 45", "9, 45", "18", 
+                  "8, 9", "3, 9, 17", "8, 9, 17", "7, 8, 9, 17", "4", 
+                  "5", "17", "23", "7, 9, 17", "9, 18", "10", "21", 
+                  "3", "3, 7, 8, 9, 17", "114", "24", "3, 7, 8, 9, 17, 119, 171", 
+                  "3, 8, 9, 17", "3, 9", "4, 15, 38, 114", "7, 9", "7, 8, 9", 
+                  "9, 17, 171", "45", "8, 9, 45","200"),
+  Count = c(237, 150, 44, 36, 34, 32, 30, 27, 25, 24, 23, 22, 22, 
+            21, 21, 20, 16, 16, 16, 14, 14, 13, 13, 13, 13, 13, 12, 12, 
+            11, 11,960),
+  Percentage_Count = c(12.38, 7.83, 2.30, 1.88, 1.78, 1.67, 1.57, 
+                       1.41, 1.31, 1.25, 1.20, 1.15, 1.15, 1.10, 1.10, 1.04, 
+                       0.84, 0.84, 0.84, 0.73, 0.73, 0.68, 0.68, 0.68, 0.68, 
+                       0.68, 0.63, 0.63, 0.57, 0.57,50.13)
+)
+
+#Function to map test numbers to allergen names
+map_to_allergen_names <- function(Combination) {
+  # Split the combination string into individual test numbers
+  test_nums <- as.numeric(unlist(strsplit(Combination, ", ")))
+  
+  # Map test numbers to allergen names
+  allergen_names <- sapply(test_nums, function(num) allergen_mapping[as.character(num)], USE.NAMES = FALSE)
+  
+  # Combine allergen names into a single string
+  paste(allergen_names, collapse = ", ")
+}
+
+# Apply the function to complete the Combination_Name column
+table$Combination_Name <- sapply(table$Combination, map_to_allergen_names)
+
+
+# Function to determine the type of allergy (Food, Aero, or Aero/Food)
+determine_allergy_type <- function(Combination_Name) {
+  # Check if the combination contains "Other"
+  if (grepl("Other", Combination_Name)) {
+    return("Aero/Food")
+  }
+  
+  # Check if the combination contains any Food allergens
+  has_food <- any(grepl("Prawns/Shrimp|Cows milk|Wheat flour|Beef|Pork|Mutton|Gelatin|Egg|Tuna|Coconut", Combination_Name))
+  
+  # Check if the combination contains any Aero allergens
+  has_aero <- any(grepl("House dust mite|Cockroach|Mould mite|Dog hair|Aspergillus fumigatus|Cat|Weed mix|Grass", Combination_Name))
+  
+  # Determine the type of allergy
+  if (has_food && has_aero) {
+    return("Aero/Food")
+  } else if (has_food) {
+    return("Food")
+  } else {
+    return("Aero")
+  }
+}
+
+# Apply the function to determine the type of allergy
+table$Allergen_Type <- sapply(table$Combination_Name, determine_allergy_type)
+# Define colors for each allergen type
+allergen_colors <- c("Aero" = "#d95f02", "Food" = "#1b9e77", "Aero/Food" = "#7570b3")
+
+# Create the bar plot using ggplot
+p <- ggplot(table, aes(x = as.factor(Number), y = Percentage_Count, fill = Allergen_Type, text = Combination_Name)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = allergen_colors) + 
+  labs(title = "Percentage Count of Allergen Combination",
+       x = "Combination Number",
+       y = "Percentage Count (%)",
+       fill = "Allergen Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+# Convert ggplot to an interactive plotly chart
+ggplotly(p, tooltip = "text")
+```
+
+### Aero Allergen Combinations {data-width=600}
+
+```{r}
+# Define colors for each allergen type
+allergen_colors <- c("Aero" = "#d95f02", "Food" = "#1b9e77")
+
+# Filter data for Aero allergens
+aero_table <- subset(table, Allergen_Type == "Aero")
+
+# Filter data for Food allergens
+food_table <- subset(table, Allergen_Type == "Food")
+# Create the Aero allergens bar plot
+aero_plot <- ggplot(aero_table, aes(x = as.factor(Number), y = Percentage_Count, fill = Allergen_Type, text = Combination_Name)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = allergen_colors) + 
+  labs(title = "Percentage Count of Aero Allergens",
+       x = "Combination Number",
+       y = "Percentage Count (%)",
+       fill = "Allergen Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.4, hjust=1))
+
+# Convert Aero ggplot to interactive plotly
+aero_plotly <- ggplotly(aero_plot, tooltip = "text")
+# Create the Food allergens bar plot
+food_plot <- ggplot(food_table, aes(x = as.factor(Number), y = Percentage_Count, fill = Allergen_Type, text = Combination_Name)) +
+  geom_bar(stat = "identity" ,width = 0.4, linewidth = 0.15) +
+  scale_fill_manual(values = allergen_colors) + 
+  labs(title = "Percentage Count of Food Allergens",
+       x = "Combination Number",
+       y = "Percentage Count (%)",
+       fill = "Allergen Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.4, hjust=1))
+
+# Convert Food ggplot to interactive plotly
+food_plotly <- ggplotly(food_plot, tooltip = "text")
+# Display plots
+aero_plotly
+
+```
+
+### Food Allergen Combinations {data-width=400}
+
+```{r}
+food_plotly
+```
+
+
+Allergens
+==============================
+
+row
+------------------------------
+
+### Common Allergens
+
+```{r}
+valueBox(paste("18"),
+         color = "black")
+```
+
+### Common Food Allergens
+
+```{r}
+valueBox(paste("10"),
+         color = "#1b9e77")
+```
+
+### Common Aero Allergens
+
+```{r}
+valueBox(paste("8"),
+         color = "#d95f02")
+```
+ 
+ 
+ 
+## row 
+-----------------------------------------------------------------------
+ 
+### Percentage of Different Allergen Types  
+
+
+
+```{r}
+# Define the data
+allergen_names <- c("House dust mite", "Cockroach", "Mould mite", "Dog hair", "Prawns/Shrimp", 
+                    "Aspergillus fumigatus", "Cat", "Cows milk", "Wheat flour", "Beef", 
+                    "Weed mix", "Pork", "Mutton", "Gelatin", "Grass", "Egg", "Tuna", "Coconut")
+
+test_numbers <- c(9, 17, 45, 8, 18, 3, 7, 5, 23, 4, 171, 15, 38, 114, 119, 10, 21, 24)
+
+# Define the allergen types
+allergen_types <- c("Aero", "Aero", "Aero", "Aero", "Food", 
+                    "Aero", "Aero", "Food", "Food", "Food", 
+                    "Aero", "Food", "Food", "Food", "Aero", 
+                    "Food", "Food", "Food")
+# Create a data frame
+Allergen_Table <- data.frame(
+  Test_Number = test_numbers,
+  Name_of_Allergen = allergen_names,
+  Allergen_Type = allergen_types
+)
+# Split into Aero and Food allergens
+Aero_Allergens <- Allergen_Table[Allergen_Table$Allergen_Type == "Aero", c("Test_Number", "Name_of_Allergen")]
+Food_Allergens <- Allergen_Table[Allergen_Table$Allergen_Type == "Food", c("Test_Number", "Name_of_Allergen")]
+
+library(wordcloud)
+# Define allergen names and categories
+allergen_names <- c("House dust mite", "Cockroach", "Mould mite", "Dog hair", "Prawns/Shrimp", 
+                    "Aspergillus fumigatus", "Cat", "Cows milk", "Wheat flour", "Beef", 
+                    "Weed mix", "Pork", "Mutton", "Gelatin", "Grass", "Egg", "Tuna", "Coconut")
+
+allergen_types <- c("Aero", "Aero", "Aero", "Aero", "Food", 
+                    "Aero", "Aero", "Food", "Food", "Food", 
+                    "Aero", "Food", "Food", "Food", "Aero", 
+                    "Food", "Food", "Food")
+# Count the number of allergens in each type
+allergen_type_counts <- as.data.frame(table(Allergen_Table$Allergen_Type))
+colnames(allergen_type_counts) <- c("Allergen_Type", "Count")
+
+# Calculate the percentage of each allergen type
+allergen_type_counts <- allergen_type_counts %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+
+    
+# Create the bar plot with percentage labels
+p <- ggplot(allergen_type_counts, aes(x = reorder(Allergen_Type, -Count), y = Count, fill = Allergen_Type)) +
+  geom_bar(stat = "identity", width = 0.35, linewidth = 0.2, color = "black") +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")),  
+            vjust = -2,  # Adjust vertical position to place text above bars
+            size = 3,  
+            color = "black") +
+  labs(title = "Types of Allergens",
+       x = "Allergen Type",
+       y = "Count",
+       fill = "Allergen Type") +  # Set legend title here
+  scale_fill_manual(values = c("Food" = "#1b9e77", "Aero" = "#d95f02")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 9),
+    legend.title = element_text(size = 8),  # Reduce font size of the legend title
+    legend.text = element_text(size = 8)   # Optionally reduce the font size of legend text
+  )
+
+# Convert ggplot to an interactive Plotly plot
+interactive_plot <- ggplotly(p, tooltip = c("y","Percentage"))
+
+# Show the interactive plot
+interactive_plot
+
+
+
+
+```
+
+### Summary of Common Allergens 
+
+```{r}
+
+# Define the data
+allergen_names <- c("House dust mite", "Cockroach", "Mould mite", "Dog hair", "Prawns/Shrimp", 
+                    "Aspergillus fumigatus", "Cat", "Cows milk", "Wheat flour", "Beef", 
+                    "Weed mix", "Pork", "Mutton", "Gelatin", "Grass", "Egg", "Tuna", "Coconut")
+
+test_numbers <- c(9, 17, 45, 8, 18, 3, 7, 5, 23, 4, 171, 15, 38, 114, 119, 10, 21, 24)
+
+allergen_types <- c("Aero", "Aero", "Aero", "Aero", "Food", 
+                    "Aero", "Aero", "Food", "Food", "Food", 
+                    "Aero", "Food", "Food", "Food", "Aero", 
+                    "Food", "Food", "Food")
+
+# Create a data frame
+Allergen_Table <- data.frame(
+  Test_Number = test_numbers,
+  Name_of_Allergen = allergen_names,
+  Allergen_Type = allergen_types
+)
+
+# Remove underscores in column names using gsub
+colnames(Allergen_Table) <- gsub("_", " ", colnames(Allergen_Table))
+
+# Apply kable() and kableExtra for coloring
+Allergen_Table %>%
+  kable() %>%
+  kableExtra::kable_styling() %>%
+  kableExtra::column_spec(3, background = ifelse(Allergen_Table$`Allergen Type` == "Aero", "#d95f02", "#1b9e77"))
+
+
+
+```
+
+ 
+
+Data Table
+============================
+
+
+```{r}
+# Load necessary library
+library(DT)
+
+# Define the data
+allergen_names <- c("House dust mite", "Cockroach", "Mould mite", "Dog hair", "Prawns/Shrimp", 
+                    "Aspergillus fumigatus", "Cat", "Cows milk", "Wheat flour", "Beef", 
+                    "Weed mix", "Pork", "Mutton", "Gelatin", "Grass", "Egg", "Tuna", "Coconut", "Other")
+
+test_numbers <- c(9, 17, 45, 8, 18, 3, 7, 5, 23, 4, 171, 15, 38, 114, 119, 10, 21, 24, 200)
+
+# Create a mapping between test numbers and allergen names
+allergen_mapping <- setNames(allergen_names, test_numbers)
+
+# Define the table
+table <- data.frame(
+  Number = 1:31,
+  Combination = c( "9", "9, 17", "9, 17, 45", "9, 45", "18", 
+                   "8, 9", "3, 9, 17", "8, 9, 17", "7, 8, 9, 17", "4", 
+                   "5", "17", "23", "7, 9, 17", "9, 18", "10", "21", 
+                   "3", "3, 7, 8, 9, 17", "114", "24", "3, 7, 8, 9, 17, 119, 171", 
+                   "3, 8, 9, 17", "3, 9", "4, 15, 38, 114", "7, 9", "7, 8, 9", 
+                   "9, 17, 171", "45", "8, 9, 45", "200"),
+  Count = c(237, 150, 44, 36, 34, 32, 30, 27, 25, 24, 23, 22, 22, 
+            21, 21, 20, 16, 16, 16, 14, 14, 13, 13, 13, 13, 13, 12, 12, 
+            11, 11, 960),
+  Percentage_Count = c(12.38, 7.83, 2.30, 1.88, 1.78, 1.67, 1.57, 
+                       1.41, 1.31, 1.25, 1.20, 1.15, 1.15, 1.10, 1.10, 1.04, 
+                       0.84, 0.84, 0.84, 0.73, 0.73, 0.68, 0.68, 0.68, 0.68, 
+                       0.68, 0.63, 0.63, 0.57, 0.57, 50.13)
+)
+
+# Function to map test numbers to allergen names
+map_to_allergen_names <- function(Combination) {
+  # Split the combination string into individual test numbers
+  test_nums <- as.numeric(unlist(strsplit(Combination, ", ")))
+  
+  # Map test numbers to allergen names
+  allergen_names <- sapply(test_nums, function(num) allergen_mapping[as.character(num)], USE.NAMES = FALSE)
+  
+  # Combine allergen names into a single string
+  paste(allergen_names, collapse = ", ")
+}
+
+# Apply the function to complete the Combination_Name column
+table$Combination_Name <- sapply(table$Combination, map_to_allergen_names)
+
+# Function to determine the type of allergy (Food, Aero, or Aero/Food)
+determine_allergy_type <- function(Combination_Name) {
+  # Check if the combination contains "Other"
+  if (grepl("Other", Combination_Name)) {
+    return("Aero/Food")
+  }
+  
+  # Check if the combination contains any Food allergens
+  has_food <- any(grepl("Prawns/Shrimp|Cows milk|Wheat flour|Beef|Pork|Mutton|Gelatin|Egg|Tuna|Coconut", Combination_Name))
+  
+  # Check if the combination contains any Aero allergens
+  has_aero <- any(grepl("House dust mite|Cockroach|Mould mite|Dog hair|Aspergillus fumigatus|Cat|Weed mix|Grass", Combination_Name))
+  
+  # Determine the type of allergy
+  if (has_food && has_aero) {
+    return("Aero/Food")
+  } else if (has_food) {
+    return("Food")
+  } else {
+    return("Aero")
+  }
+}
+
+# Apply the function to determine the type of allergy
+table$Allergen_Type <- sapply(table$Combination_Name, determine_allergy_type)
+
+# Select the relevant columns (excluding 'Number')
+table_selected_columns <- table[, c("Number","Combination","Combination_Name", "Count", "Percentage_Count", "Allergen_Type")]
+
+# Replace underscores with spaces in column names
+colnames(table_selected_columns) <- gsub("_", " ", colnames(table_selected_columns))
+
+# Print the updated table using datatable
+datatable(table_selected_columns,
+          caption = "Common Allergen Combinations",
+          rownames = FALSE,
+          filter = "top",
+          options = list(pageLength = 10)
+)
+
+```
+
+Sankey Diagram
+============================
+
+### Chart A
+
+```{r,fig.width=90, fig.height=27}
+# Load the dataset
+data <- read_csv("D:/MSc Research/Allergy_data/table.csv")
+
+# Remove last row where Combination_Name is "Other"
+data <- data %>% filter(Combination != "200")
+
+# Convert to long format for Sankey diagram
+df <- data |> make_long(Allergen_Type, Combination_Name)
+
+# Define custom colors for allergen types
+color_mapping <- c("Aero" = "#d95f02", "Food" = "#1b9e77", "Aero/Food" = "#7570b3")
+
+# Base ggplot
+p1 <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, 
+                     fill = factor(node), label = node))
+
+# Add Sankey geom
+p2 <- p1 + geom_sankey(flow.alpha = 1, show.legend = FALSE)
+
+# Add labels outside the nodes
+p3 <- p2 + geom_sankey_label(hjust = -0.09, size = 16)  
+
+# Apply theme settings
+p5 <- p3 + theme_sankey(base_size = 14) + 
+  theme(legend.position = "none",
+        axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())
+
+# Add title and fill color mapping
+p6 <- p5 +
+  scale_fill_manual(values = color_mapping)
+
+p6
+```
+
+# Sankey Diagram
+
+### p
+
+```{r}
+ # Load necessary libraries
+library(tidyverse)
+library(networkD3)
+
+# Load the dataset
+data <- read_csv("D:/MSc Research/Allergy_data/table.csv")
+
+# Remove rows where Combination_Name is "Other"
+data <- data %>% filter(Combination_Name != "Other")  # Fixed the filtering issue
+
+# Convert to long format for Sankey diagram
+df_long <- data %>% select(Allergen_Type, Combination_Name)
+
+# Create a unique node list
+nodes <- data.frame(name = unique(c(df_long$Allergen_Type, df_long$Combination_Name)))
+
+# Identify right-side (Combination_Name) nodes for gray color
+right_nodes <- df_long$Combination_Name
+
+# Assign colors: left-side nodes colored, right-side nodes gray
+nodes$group <- ifelse(nodes$name %in% right_nodes, "Gray",  # Right-side nodes (Combination_Name) -> Gray
+               ifelse(grepl("Aero/Food", nodes$name), "Aero/Food",
+               ifelse(grepl("Aero", nodes$name), "Aero",
+               ifelse(grepl("Food", nodes$name), "Food", "Other"))))
+
+# Map source and target to node index
+df_long <- df_long %>%
+  mutate(source = match(Allergen_Type, nodes$name) - 1,
+         target = match(Combination_Name, nodes$name) - 1,
+         value = 1)  # Assigning a weight of 1 for equal connections
+
+# Assign link color based on the left-side source node
+df_long$group <- nodes$group[df_long$source + 1]  # Ensure correct indexing
+
+# Define JavaScript color scale
+color_scale <- 'd3.scaleOrdinal()
+  .domain(["Aero", "Food", "Aero/Food", "Gray"])
+  .range(["#d95f02", "#1b9e77", "#7570b3", "gray"])'  # Aero/Food is purple
+
+# Create Sankey diagram with correct colors
+sankey <- sankeyNetwork(Links = df_long, Nodes = nodes,
+                        Source = "source", Target = "target",
+                        Value = "value", NodeID = "name",
+                        fontSize = 20, nodeWidth = 35,
+                        NodeGroup = "group", colourScale = color_scale,width = 1400, height = 600,
+                        LinkGroup = "group")  # Keeps links colored by left node
+
+# Display the Sankey diagram
+sankey
+
+
+```
+
+# Heat Map
+
+### Heat Map
+
+ 
+```{r}
+#Read the CSV file with the correct file path and store it in a properly named variable
+df_combination_frequency_CSV <- read.csv("D:/MSc Research/Allergy_data/df_combination_frequecy_CSV.csv", row.names=1)
+
+# View the dataset (assuming you meant to view the CSV data)
+df_combination_frequency_CSV<-data.matrix(df_combination_frequency_CSV) 
+
+heatmap(df_combination_frequency_CSV)
+
+
+```
+
+### Dendrogram
+
+```{r}
+#########
+library(Rtsne)   # For t-SNE
+library(ggplot2) # For visualization
+library(dplyr)   # For data manipulation
+library(readr)
+data <- read.csv("D:/MSc Research/Allergy_data/Combinations_with_F_A.csv", row.names=1)
+ 
+
+# Separate the columns into food (F) and aero (A) categories
+food_columns <- grep("^F", names(data), value = TRUE)
+aero_columns <- grep("^A", names(data), value = TRUE)
+# Combine the data for t-SNE (excluding the Combination_Number column)
+combined_data <- data[, c(food_columns, aero_columns)]
+# Apply t-SNE
+set.seed(42)  # For reproducibility
+tsne_results <- Rtsne(as.matrix(combined_data), dims = 2, perplexity = 5, verbose = FALSE)  # Set verbose = FALSE to suppress output
+
+
+# Create a data frame for the t-SNE results
+tsne_df <- as.data.frame(tsne_results$Y)
+colnames(tsne_df) <- c("TSNE1", "TSNE2")
+# Add a column to indicate the category (Food or Aero) for each combination
+# Determine the category based on the sum of food and aero values
+tsne_df$Category <- ifelse(rowSums(data[, food_columns]) > rowSums(data[, aero_columns]), "Food", "Aero")
+# Plot the results using ggplot2
+ggplot(tsne_df, aes(x = TSNE1, y = TSNE2, color = Category)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("Food" = "red", "Aero" = "darkgreen")) +
+  labs(title = "t-SNE Clustering of Food and Aero Combinations",
+       x = "TSNE1",
+       y = "TSNE2") +
+  theme_minimal()
+
+```
