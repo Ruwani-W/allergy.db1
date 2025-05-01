@@ -1,0 +1,32 @@
+/* Override the default navbar-inverse styles */
+.navbar-inverse {
+    background-color: black !important;  /* Change navbar background */
+    border-color: black !important;  /* Navbar border */
+}
+
+/* Change text color in navbar */
+.navbar-inverse .navbar-brand,
+.navbar-inverse .navbar-nav > li > a {
+    color: white !important;  /* Light text for contrast */
+}
+
+/* Navbar links on hover */
+.navbar-inverse .navbar-nav > li > a:hover {
+    color: #1b9e77 !important;  /* Highlight color on hover */
+}
+
+/* Active navbar item */
+.navbar-inverse .navbar-nav > .active > a {
+    background-color: #bebada !important;
+    color: black !important;
+}
+
+/* Ensure text inside valueBox is white */
+.value-box .value {
+    color: white !important;
+}
+
+/* Change the header text color of valueBox */
+.value-box .caption {
+    color: white !important;
+}
