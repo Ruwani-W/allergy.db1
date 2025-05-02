@@ -66,13 +66,173 @@ valueBox(paste("Total  2549"),
 ### Number of Patients Who Tested Positive in the Skin Prick Test
 
 ```{r}
-valueBox(paste("Positive  1916"),
+valueBox(paste("Positive  1915 (75.13%)"),
          color = "#e41a1c")
 ```
 
+## row  
+-----------------------------------------------------------------------
+ 
+
+### Gender Distribution of Positive Cases {data-width=300}
+
+
+```{r}
+# Load the dataset
+data <- read.csv("Skin_Test_Data 25.4.2025.csv")
+
+# Convert all gender values to uppercase to standardize
+data$Gender <- toupper(data$Gender)
+
+# Recode F to FEMALE, M to MALE
+data$Gender[data$Gender == "F"] <- "FEMALE"
+data$Gender[data$Gender == "M"] <- "MALE"
+
+# Keep only rows with Gender as MALE or FEMALE
+data <- subset(data, Gender %in% c("MALE", "FEMALE"))
+
+# Compute gender counts and percentages
+gender_table <- table(data$Gender)  # Get counts
+gender_counts <- as.vector(gender_table)  # Convert to numeric
+gender_percentages <- prop.table(gender_table) * 100  # Compute percentages
+Percentage = round(gender_percentages, 2) # Round percentages
+
+# Create a dataframe
+gender_data <- data.frame(
+  Gender = names(gender_table),
+  Count = gender_counts,
+  Percentage = Percentage
+)
+
+# Manually modify the gender labels to have only the first letter capitalized
+gender_data$Gender <- ifelse(gender_data$Gender == "MALE", "Male", 
+                             ifelse(gender_data$Gender == "FEMALE", "Female", gender_data$Gender))
+
+# Plot bar chart
+p1 <- ggplot(gender_data, aes(x = Gender, y = Percentage, fill = Gender, 
+                              text = paste0("Gender: ", Gender, 
+                                            "<br>Count: ", Count,  
+                                            "<br>Percentage: ", Percentage, "%"))) +
+  geom_bar(stat = "identity", color = "black", width = 0.4, size = 0.2) +  # Reduce bar width
+  scale_fill_manual(values = c("#a6cee3", "#1f78b4")) +
+  labs(x = "Gender", y = "Percentage", title = "Gender Distribution") +
+  ylim(0, 100) +
+  theme_minimal()
+
+# Convert to interactive plot
+ggplotly(p1, tooltip = "text")
+
+
+```   
+
+### Age Distribution of Positive Cases{data-width=300}
+    
+```{r}
+# Ensure Age is numeric and remove missing values
+data$Age <- as.numeric(data$Age)
+data <- data[!is.na(data$Age), ]
+
+# Create histogram
+p2 <- ggplot(data, aes(x = Age)) +
+  geom_histogram(binwidth = 5, fill = "#33a02c", color = "black", alpha = 0.7, size = 0.2) +
+  labs(x = "Age", y = "Count", title = "Age Distribution") +
+  theme_minimal()
+
+# Convert to interactive plot
+plotly::ggplotly(p2)
+
+
+```
+
+### Age Group Distribution of Positive Cases{data-width=400}
+    
+```{r}
+# Remove rows with NA in Age
+df <- data %>%
+  filter(!is.na(Age)) %>%
+  mutate(Age_group = case_when(
+    Age <= 1                     ~ "Infant",       # 1 year and below
+    Age > 1 & Age < 12           ~ "Child",        # 2 - 11 years
+    Age >= 12 & Age < 18         ~ "Adolescent",   # 12 - 17 years
+    Age >= 18 & Age < 65         ~ "Adult",        # 18 - 64 years
+    Age >= 65                    ~ "Elderly"       # 65+ years
+  ))
+
+# Count the number of individuals in each Age Group
+age_group_counts <- df %>%
+  group_by(Age_group) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  arrange(desc(Count))
+
+# Calculate total and percentages
+total_count <- sum(age_group_counts$Count)
+
+age_group_counts <- age_group_counts %>%
+  mutate(Percentage = Count / total_count * 100)
+
+# Set factor levels to control bar order
+age_group_counts$Age_group <- factor(age_group_counts$Age_group, 
+                                     levels = c("Infant", "Child", "Adolescent", "Adult", "Elderly"))
+
+# Create bar plot
+P4 <- ggplot(age_group_counts, aes(x = Age_group, y = Count, fill = Age_group,
+                                   text = paste("Age Group:", Age_group,
+                                                "<br>Count:", Count,
+                                                "<br>Percentage:", round(Percentage, 1), "%"))) +
+  geom_bar(stat = "identity", color = "black", width = 0.8, size = 0.2) +
+  labs(x = "Age Group", y = "Count", title = "Age Group Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 10),
+        legend.key.size = unit(0.5, "cm")) +
+  scale_fill_manual(values = c("Infant" = "#1b9e77", "Child" = "#d95f02",
+                               "Adolescent" = "#7570b3", "Adult" = "#e6ab02", "Elderly" = "#a6761d")) +
+  guides(fill = guide_legend(title = "Age Group"))
+
+# Make interactive with plotly
+plotly::ggplotly(P4, tooltip = "text")
+ 
+
+```
+
+
+
+
+
+
+Allergens
+==============================
+
+row
+------------------------------
+
+### Common Allergens
+
+```{r}
+valueBox(paste("18"),
+         color = "black")
+```
+
+### Common Food Allergens
+
+```{r}
+valueBox(paste("10"),
+         color = "#1b9e77")
+```
+
+### Common Aero Allergens
+
+```{r}
+valueBox(paste("8"),
+         color = "#d95f02")
+```
+ 
+ 
+ 
 ## Chart B {.tabset}
 
-### Allergen Combinations  
+### Aero Allergen Combinations  
 
 ```{r}
 # Define the data
@@ -158,13 +318,6 @@ p <- ggplot(table, aes(x = as.factor(Number), y = Percentage_Count, fill = Aller
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 
-# Convert ggplot to an interactive plotly chart
-ggplotly(p, tooltip = "text")
-```
-
-### Aero Allergen Combinations {data-width=600}
-
-```{r}
 # Define colors for each allergen type
 allergen_colors <- c("Aero" = "#d95f02", "Food" = "#1b9e77")
 
@@ -204,160 +357,19 @@ aero_plotly
 
 ```
 
-### Food Allergen Combinations {data-width=400}
+### Food Allergen Combinations {data-width=600}
 
 ```{r}
 food_plotly
 ```
 
-
-Allergens
-==============================
-
-row
-------------------------------
-
-### Common Allergens
+ 
+### Aero and Food Allergen Combinations {data-width=400}
 
 ```{r}
-valueBox(paste("18"),
-         color = "black")
+ggplotly(p, tooltip = "text")
 ```
 
-### Common Food Allergens
-
-```{r}
-valueBox(paste("10"),
-         color = "#1b9e77")
-```
-
-### Common Aero Allergens
-
-```{r}
-valueBox(paste("8"),
-         color = "#d95f02")
-```
- 
- 
- 
-## row 
------------------------------------------------------------------------
- 
-### Percentage of Different Allergen Types  
-
-
-
-```{r}
-# Define the data
-allergen_names <- c("House dust mite", "Cockroach", "Mould mite", "Dog hair", "Prawns/Shrimp", 
-                    "Aspergillus fumigatus", "Cat", "Cows milk", "Wheat flour", "Beef", 
-                    "Weed mix", "Pork", "Mutton", "Gelatin", "Grass", "Egg", "Tuna", "Coconut")
-
-test_numbers <- c(9, 17, 45, 8, 18, 3, 7, 5, 23, 4, 171, 15, 38, 114, 119, 10, 21, 24)
-
-# Define the allergen types
-allergen_types <- c("Aero", "Aero", "Aero", "Aero", "Food", 
-                    "Aero", "Aero", "Food", "Food", "Food", 
-                    "Aero", "Food", "Food", "Food", "Aero", 
-                    "Food", "Food", "Food")
-# Create a data frame
-Allergen_Table <- data.frame(
-  Test_Number = test_numbers,
-  Name_of_Allergen = allergen_names,
-  Allergen_Type = allergen_types
-)
-# Split into Aero and Food allergens
-Aero_Allergens <- Allergen_Table[Allergen_Table$Allergen_Type == "Aero", c("Test_Number", "Name_of_Allergen")]
-Food_Allergens <- Allergen_Table[Allergen_Table$Allergen_Type == "Food", c("Test_Number", "Name_of_Allergen")]
-
-library(wordcloud)
-# Define allergen names and categories
-allergen_names <- c("House dust mite", "Cockroach", "Mould mite", "Dog hair", "Prawns/Shrimp", 
-                    "Aspergillus fumigatus", "Cat", "Cows milk", "Wheat flour", "Beef", 
-                    "Weed mix", "Pork", "Mutton", "Gelatin", "Grass", "Egg", "Tuna", "Coconut")
-
-allergen_types <- c("Aero", "Aero", "Aero", "Aero", "Food", 
-                    "Aero", "Aero", "Food", "Food", "Food", 
-                    "Aero", "Food", "Food", "Food", "Aero", 
-                    "Food", "Food", "Food")
-# Count the number of allergens in each type
-allergen_type_counts <- as.data.frame(table(Allergen_Table$Allergen_Type))
-colnames(allergen_type_counts) <- c("Allergen_Type", "Count")
-
-# Calculate the percentage of each allergen type
-allergen_type_counts <- allergen_type_counts %>%
-  mutate(Percentage = Count / sum(Count) * 100)
-
-    
-# Create the bar plot with percentage labels
-p <- ggplot(allergen_type_counts, aes(x = reorder(Allergen_Type, -Count), y = Count, fill = Allergen_Type)) +
-  geom_bar(stat = "identity", width = 0.35, linewidth = 0.2, color = "black") +
-  geom_text(aes(label = paste0(round(Percentage, 1), "%")),  
-            vjust = -2,  # Adjust vertical position to place text above bars
-            size = 3,  
-            color = "black") +
-  labs(title = "Types of Allergens",
-       x = "Allergen Type",
-       y = "Count",
-       fill = "Allergen Type") +  # Set legend title here
-  scale_fill_manual(values = c("Food" = "#1b9e77", "Aero" = "#d95f02")) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
-    axis.title = element_text(size = 9),
-    axis.text = element_text(size = 9),
-    legend.title = element_text(size = 8),  # Reduce font size of the legend title
-    legend.text = element_text(size = 8)   # Optionally reduce the font size of legend text
-  )
-
-# Convert ggplot to an interactive Plotly plot
-interactive_plot <- ggplotly(p, tooltip = c("y","Percentage"))
-
-# Show the interactive plot
-interactive_plot
-
-
-
-
-```
-
-### Summary of Common Allergens 
-
-```{r}
-
-# Define the data
-allergen_names <- c("House dust mite", "Cockroach", "Mould mite", "Dog hair", "Prawns/Shrimp", 
-                    "Aspergillus fumigatus", "Cat", "Cows milk", "Wheat flour", "Beef", 
-                    "Weed mix", "Pork", "Mutton", "Gelatin", "Grass", "Egg", "Tuna", "Coconut")
-
-test_numbers <- c(9, 17, 45, 8, 18, 3, 7, 5, 23, 4, 171, 15, 38, 114, 119, 10, 21, 24)
-
-allergen_types <- c("Aero", "Aero", "Aero", "Aero", "Food", 
-                    "Aero", "Aero", "Food", "Food", "Food", 
-                    "Aero", "Food", "Food", "Food", "Aero", 
-                    "Food", "Food", "Food")
-
-# Create a data frame
-Allergen_Table <- data.frame(
-  Test_Number = test_numbers,
-  Name_of_Allergen = allergen_names,
-  Allergen_Type = allergen_types
-)
-
-# Remove underscores in column names using gsub
-colnames(Allergen_Table) <- gsub("_", " ", colnames(Allergen_Table))
-
-# Apply kable() and kableExtra for coloring
-Allergen_Table %>%
-  kable() %>%
-  kableExtra::kable_styling() %>%
-  kableExtra::column_spec(3, background = ifelse(Allergen_Table$`Allergen Type` == "Aero", "#d95f02", "#1b9e77"))
-
-
-
-```
-
- 
 
 Data Table
 ============================
@@ -455,49 +467,7 @@ datatable(table_selected_columns,
 Sankey Diagram
 ============================
 
-### Chart A
-
-```{r,fig.width=90, fig.height=27}
-# Load the dataset
-data <- read_csv("D:/MSc Research/Allergy_data/table.csv")
-
-# Remove last row where Combination_Name is "Other"
-data <- data %>% filter(Combination != "200")
-
-# Convert to long format for Sankey diagram
-df <- data |> make_long(Allergen_Type, Combination_Name)
-
-# Define custom colors for allergen types
-color_mapping <- c("Aero" = "#d95f02", "Food" = "#1b9e77", "Aero/Food" = "#7570b3")
-
-# Base ggplot
-p1 <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, 
-                     fill = factor(node), label = node))
-
-# Add Sankey geom
-p2 <- p1 + geom_sankey(flow.alpha = 1, show.legend = FALSE)
-
-# Add labels outside the nodes
-p3 <- p2 + geom_sankey_label(hjust = -0.09, size = 16)  
-
-# Apply theme settings
-p5 <- p3 + theme_sankey(base_size = 14) + 
-  theme(legend.position = "none",
-        axis.title = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        panel.grid = element_blank())
-
-# Add title and fill color mapping
-p6 <- p5 +
-  scale_fill_manual(values = color_mapping)
-
-p6
-```
-
-# Sankey Diagram
-
-### p
+### Sankey Diagram
 
 ```{r}
  # Load necessary libraries
@@ -570,40 +540,3 @@ heatmap(df_combination_frequency_CSV)
 
 ```
 
-### Dendrogram
-
-```{r}
-#########
-library(Rtsne)   # For t-SNE
-library(ggplot2) # For visualization
-library(dplyr)   # For data manipulation
-library(readr)
-data <- read.csv("D:/MSc Research/Allergy_data/Combinations_with_F_A.csv", row.names=1)
- 
-
-# Separate the columns into food (F) and aero (A) categories
-food_columns <- grep("^F", names(data), value = TRUE)
-aero_columns <- grep("^A", names(data), value = TRUE)
-# Combine the data for t-SNE (excluding the Combination_Number column)
-combined_data <- data[, c(food_columns, aero_columns)]
-# Apply t-SNE
-set.seed(42)  # For reproducibility
-tsne_results <- Rtsne(as.matrix(combined_data), dims = 2, perplexity = 5, verbose = FALSE)  # Set verbose = FALSE to suppress output
-
-
-# Create a data frame for the t-SNE results
-tsne_df <- as.data.frame(tsne_results$Y)
-colnames(tsne_df) <- c("TSNE1", "TSNE2")
-# Add a column to indicate the category (Food or Aero) for each combination
-# Determine the category based on the sum of food and aero values
-tsne_df$Category <- ifelse(rowSums(data[, food_columns]) > rowSums(data[, aero_columns]), "Food", "Aero")
-# Plot the results using ggplot2
-ggplot(tsne_df, aes(x = TSNE1, y = TSNE2, color = Category)) +
-  geom_point(size = 3) +
-  scale_color_manual(values = c("Food" = "red", "Aero" = "darkgreen")) +
-  labs(title = "t-SNE Clustering of Food and Aero Combinations",
-       x = "TSNE1",
-       y = "TSNE2") +
-  theme_minimal()
-
-```
