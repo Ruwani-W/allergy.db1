@@ -79,7 +79,7 @@ valueBox(paste("Positive  1915 (75.13%)"),
 
 ```{r}
 # Load the dataset
-data <- read.csv("Skin_Test_Data 25.4.2025.csv")
+data <- read.csv("Skin_Test_Data_Positive_Cases.csv")
 
 # Convert all gender values to uppercase to standardize
 data$Gender <- toupper(data$Gender)
